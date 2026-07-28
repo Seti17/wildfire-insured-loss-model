@@ -13,7 +13,7 @@
 - **[3. Data and feature selection](#3-data-and-feature-selection)**
     - [3.1 Exploratory findings](#31-exploratory-findings)
     - [3.2 Feature selection](#32-feature-selection)
-    - [3.3 Known data limitations](#33-known-data-limitations)
+    - [3.3 Data limitations](#33-data-limitations)
 
 - **[4. Model fitting and validation](#4-model-fitting-and-validation)**
     - [4.1 Model development](#41-model-development)
@@ -167,7 +167,7 @@ Total insured value per FSA (`Number of Exposure × $ Average Exposure`) is righ
 
 Trying to use several FWI-family features together ran into severe multicollinearity (they're almost collinear with each other; see Section 3.1), forcing a reduction to two low-collinearity climate predictors. Since the assignment asks for both climate and geospatial features, one non-climate geospatial predictor (`dominant_fuel_pct`) was added on top.
 
-### 3.3 Known data limitations
+### 3.3 Data limitations
 
 - **Only 2 historical events** in the provided sample, a thin basis for frequency/severity estimation, and especially for tail risk. Model complexity should be scoped accordingly.
 - **24% of claim rows lack FWI signal** and need an explicit handling decision (exclude, impute, or treat as a distinct pre-season/non-fire-weather category) before model fitting.
