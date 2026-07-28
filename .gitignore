@@ -1,0 +1,19 @@
+# Local environment & tooling
+.venv/
+.claude/
+.vscode/
+
+# OS / editor
+.DS_Store
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Climate download cache (rebuilt by pipeline)
+data/raw/climate_data/_cache/
+
+# Files exceeding GitHub's 100 MB limit (obtain from sources documented in README)
+data/raw/fuel_data/FBP_Canada_30m_3978_22052024_forRelease.tif
+data/raw/boundary_data/canada_fsa/
+data/raw/boundary_data/canada_fsa.zip
+data/processed/climate/alberta_fwi_2015_2025.nc

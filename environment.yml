@@ -1,0 +1,38 @@
+name: wildfire-loss-model
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  # llvmlite/numba (xclim's fire-index dependency) publish no macOS x86_64
+  # (Intel) wheels past llvmlite 0.41.1 / numba 0.58.x -- pinned here so an
+  # Intel Mac doesn't fall back to a source build that needs a full LLVM
+  # toolchain. See requirements.txt / README for the full pinned pip set
+  # this was validated against; drop the pin if not on Intel macOS.
+  - llvmlite=0.41.1
+  - numba=0.58.1
+  - xarray
+  - s3fs
+  - h5netcdf
+  - h5py
+  - dask
+  - xclim=0.61.1
+  - netcdf4
+  - cftime
+  - pandas
+  - scikit-learn
+  - openpyxl
+  - geopandas
+  - pyogrio
+  - rasterio
+  - rasterstats
+  - jupyterlab
+  - notebook
+  - nbconvert
+  - ipykernel
+  - matplotlib
+  - seaborn
+  - statsmodels
+  - pytest
+  - pip
+  - pip:
+      - -r requirements.txt
