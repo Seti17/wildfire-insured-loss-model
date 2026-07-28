@@ -1,10 +1,19 @@
 # Wildfire Insured-Loss Modelling
 
-Frequency-severity wildfire loss model for an Alberta insurance portfolio,
-combining climate-derived Fire Weather Index (FWI) and geospatial fuel-type
-data as hazard drivers. Evaluated using leave-one-event-out validation, tested
-for spatial dependence between FSAs, and applied illustratively under a future
-SSP1-2.6 climate scenario.
+Frequency–severity model of insured wildfire losses for an Alberta insurance
+portfolio, combining climate-derived Fire Weather Index (FWI) and geospatial
+fuel-type data as hazard drivers. Evaluated using leave-one-event-out validation,
+tested for spatial dependence between FSAs, and applied illustratively under a
+future SSP1-2.6 climate scenario.
+
+## Highlights
+
+- Reproducible preprocessing pipeline (7 standalone scripts)
+- Climate and geospatial feature engineering
+- Negative Binomial frequency + Gamma severity modelling
+- Leave-one-event-out validation
+- Spatial dependence sensitivity analysis (GEE)
+- Illustrative SSP1-2.6 climate projection
 
 **Start here:** [`reports/wildfire_loss_report.md`](reports/wildfire_loss_report.md)
 is the full write-up (data pipeline, EDA, model development, validation,
@@ -12,7 +21,43 @@ future projection, discussion).
 
 ## Project workflow
 
-![Project workflow](outputs/figures/alberta_architecture_diagram.png)
+```mermaid
+flowchart TB
+    subgraph raw["Raw data"]
+        direction LR
+        r1["Portfolio & claims"] --- r2["Climate NEX-GDDP"] --- r3["FSA boundaries"] --- r4["FBP fuel raster"]
+    end
+
+    subgraph prep["src/ preprocessing (01–07)"]
+        direction TB
+        s01["01 fetch climate"] --> s02["02 compute FWI"]
+        s02 --> s05["05 aggregate to FSA"]
+        s03["03 FSA boundaries"] --> s05
+        s04["04 fuel raster"] --> s06["06 static FSA features"]
+        s05 --> s06 --> s07["07 claims feature table"]
+    end
+
+    proc["Processed datasets"]
+
+    subgraph notebooks["Notebooks"]
+        direction TB
+        n1["01 exploration & features"] --> n2["02 model fitting"]
+    end
+
+    out["Figures · Maps · Tables · Report"]
+
+    raw --> s01
+    raw --> s03
+    raw --> s04
+    s07 --> proc --> n1
+    n2 --> out
+
+    style out fill:#2e7d32,color:#fff,stroke:#1b5e20
+    style raw fill:#e3f2fd,stroke:#1565c0
+    style prep fill:#e3f2fd,stroke:#1565c0
+    style proc fill:#e3f2fd,stroke:#1565c0
+    style notebooks fill:#e3f2fd,stroke:#1565c0
+```
 
 Raw data flows through the numbered `src/` preprocessing scripts into processed datasets, which feed the EDA notebook and then the model-fitting notebook; all figures, maps, tables, and the report are downstream outputs of that chain.
 
@@ -31,7 +76,7 @@ wildfire-insured-loss-model/
 │   └── 02_model_fitting.ipynb              model development, validation,
 │                                            spatial dependence, future projection
 ├── src/                       preprocessing scripts, numbered in run order
-│   ├── __init__.py               makes `src` importable for tests only
+│   ├── __init__.py               package marker
 │   ├── common.py                 shared paths/config/validation (not a pipeline step)
 │   ├── 01_fetch_climate_data.py
 │   ├── 02_compute_fwi.py
@@ -48,21 +93,19 @@ wildfire-insured-loss-model/
 ├── outputs/
 │   ├── figures/               chart PNGs referenced by the report/notebooks
 │   ├── maps/                  choropleth PNGs
-│   └── tables/                exported tables (coefficient_table.csv, model_comparison.csv)
+│   └── tables/                exported analysis tables
 ├── reports/
 │   └── wildfire_loss_report.md   final written report (the main deliverable)
 ├── presentation/               final slide deck
 └── references/                 external sources list + AI usage disclosure
 ```
 
-`src/` scripts are numbered so the pipeline order is obvious — each is a
-standalone, runnable step that only imports shared config from `common.py`,
-never from each other (Python identifiers can't start with a digit, so
-`01_foo.py` can't be `import`ed by another script anyway).
+Scripts are numbered to indicate execution order and are designed to run
+independently.
 
 ## Setup
 
-Requires Python 3.11 specifically (see note below).
+Requires Python 3.11.
 
 ```bash
 python3.11 -m venv .venv
@@ -77,12 +120,17 @@ conda env create -f environment.yml
 conda activate wildfire-loss-model
 ```
 
-**Why Python 3.11, not the latest:** `llvmlite`/`numba` (a dependency of
-`xclim`'s fire-index calculation) publish no macOS x86_64 (Intel) wheels
-past `llvmlite==0.41.1` / `numba==0.58.1` -- newer versions are source-only
-and need a full LLVM/CMake toolchain to build. `requirements.txt` and
-`environment.yml` both pin to these versions. If you're on Apple Silicon or
-Linux, you may not need this pin -- try the latest versions first.
+## Key libraries
+
+- pandas
+- geopandas
+- xarray
+- xclim
+- rasterio
+- statsmodels
+- scikit-learn
+- matplotlib
+- pytest
 
 ## Data Acquisition
 
@@ -92,7 +140,8 @@ Download the following datasets before running the preprocessing pipeline:
 
 - Canadian FSA boundaries (Statistics Canada)
 - Canadian FBP fuel raster
-- NASA NEX-GDDP CMIP6 climate data (downloaded automatically)
+- NASA NEX-GDDP CMIP6 climate data
+  (downloaded automatically by `01_fetch_climate_data.py`)
 
 See `references/external_sources.md` for source URLs and licensing information.
 
@@ -101,58 +150,33 @@ See `references/external_sources.md` for source URLs and licensing information.
 Run the numbered scripts in order, from the project root:
 
 ```bash
-python src/01_fetch_climate_data.py
-python src/02_compute_fwi.py
-python src/03_extract_fsa_boundaries.py
-python src/04_process_fuel_raster.py
-python src/05_aggregate_climate_to_fsa.py
-python src/06_build_static_fsa_features.py
-python src/07_build_claims_feature_table.py
+python src/01_fetch_climate_data.py          # downloads and caches NEX-GDDP climate data
+python src/02_compute_fwi.py                 # computes daily FWI components via xclim
+python src/03_extract_fsa_boundaries.py      # filters national FSA boundaries to Alberta
+python src/04_process_fuel_raster.py         # zonal statistics of FBP fuel raster onto FSA polygons
+python src/05_aggregate_climate_to_fsa.py    # area-weighted spatial join of FWI grid onto FSA polygons
+python src/06_build_static_fsa_features.py   # combines fuel and exposure into one row per FSA
+python src/07_build_claims_feature_table.py  # builds claims feature table with event-window FWI and static features
 ```
 
-- **`01_fetch_climate_data.py`** -- fetches NEX-GDDP-CMIP6 climate data
-  (`tas`, `hurs`, `pr`, `sfcWind`) for the configured bounding box (Alberta
-  by default -- see `src/common.py`). Parametrized by year range, so the
-  same function also fetches the future (2045-2050) horizon used for the
-  climate-scenario projection. Per-variable-year fetches are cached under
-  `data/raw/climate_data/_cache/` -- an interrupted run can be re-launched
-  and will skip already-fetched combinations. Output lands in
-  `data/processed/climate/`.
-- **`02_compute_fwi.py`** -- computes daily FWI components (`DC`, `DMC`,
-  `FFMC`, `ISI`, `BUI`, `FWI`) via `xclim` from script 01's output. Expect
-  ~60% NaN over a full calendar year at this latitude -- that's the WF93
-  fire-season mask working as intended (long winters have no fire season),
-  not missing data.
-- **`03_extract_fsa_boundaries.py`** -- filters the national FSA boundary
-  shapefile to Alberta and cross-checks it against the portfolio data's FSA
-  list. Output lands in `data/processed/boundaries/`. 5 portfolio FSAs have
-  no matching polygon in this boundary vintage -- see the report Section 4 for the
-  breakdown of which are legitimate exclusions vs. real gaps.
-- **`04_process_fuel_raster.py`** -- zonal statistics of the FBP Canada fuel
-  raster onto FSA polygons (dominant fuel class, class diversity).
-- **`05_aggregate_climate_to_fsa.py`** -- area-weighted spatial join of the
-  daily FWI grid onto FSA polygons (equal-area projection, NaN-aware).
-  Reused unchanged (different input/output paths) to produce the future
-  (2045-2050) FSA-level FWI series for the climate-scenario projection.
-- **`06_build_static_fsa_features.py`** -- combines fuel + current exposure
-  into one row per FSA.
-- **`07_build_claims_feature_table.py`** -- parses each claim's event-date
-  window, aggregates FWI over that window, and attaches static features.
-  Output: `data/processed/features/{region}_claims_features.csv`, the input
-  to the modelling notebook.
+Then run the notebooks in order (with the environment activated):
 
-The pipeline is region-agnostic -- a single config file (`src/common.py`)
-controls which region's bounding box, province filter, and future-horizon
-year range are used.
+```bash
+jupyter lab notebooks/01_exploration_and_features.ipynb  # EDA
+jupyter lab notebooks/02_model_fitting.ipynb             # modelling, validation, projection
+```
+
+The pipeline is region-agnostic: a single configuration file (`src/common.py`)
+controls the region's bounding box, province filter, and future-horizon year
+range.
 
 ## Testing
 
-A small `tests/` suite covers the riskiest pure-function transformations
-extracted into `src/common.py` -- longitude conversion, NaN-aware
-area-weighted aggregation, climate-input unit/range validation, and the
-final feature-table checks (required columns, duplicate keys, non-negative
-values). It does not test model fitting, exact coefficients, chart/map
-appearance, external downloads, or the pipeline end to end.
+A small `pytest` suite covers the highest-risk custom transformations in
+`src/common.py`, including longitude conversion, NaN-aware area-weighted
+aggregation, climate-input validation, and feature-table integrity checks.
+The focus is on validating custom data-processing logic rather than
+third-party libraries or statistical model implementations.
 
 ```bash
 pytest -q
@@ -160,20 +184,11 @@ pytest -q
 
 ## Notebooks
 
-- **`notebooks/01_exploration_and_features.ipynb`** -- EDA: portfolio/claims
-  structure, coverage checks, severity vs. exposure, spatial patterns,
-  feature distributions.
-- **`notebooks/02_model_fitting.ipynb`** -- frequency-severity model
-  (Negative Binomial + Gamma GLM combining climate and geospatial
-  features), evaluation tables/figures (AIC table, coefficient plot,
-  actual-vs-predicted, residuals), leave-one-event-out out-of-sample
-  validation (with a MAE/RMSE/convergence summary table), a GEE
-  spatial-dependence sensitivity check, and a future (SSP1-2.6,
-  2045-2050) loss projection whose outputs are explicitly labelled
-  "illustrative" due to a feature-scale mismatch with the training data.
-  Kept intentionally lean (headers, code, tables, a few short
-  interpretive notes, a closing Key Takeaways cell) -- full narrative,
-  interpretation, and limitations are in the report, not duplicated here.
+- **`notebooks/01_exploration_and_features.ipynb`** -- EDA of portfolio/claims
+  structure, coverage, and feature distributions.
+- **`notebooks/02_model_fitting.ipynb`** -- frequency-severity modelling,
+  leave-one-event-out validation, spatial dependence check, and future climate
+  projection. Full narrative and interpretation are in the report.
 
 ## Data
 
@@ -191,9 +206,14 @@ pytest -q
   (dataset-level: grain, keys, coverage, missing-value semantics) --
   documentation of all of the above, kept in sync with each other
 
-## Status
+## Troubleshooting
 
-Data pipeline, EDA, model development, out-of-sample validation, spatial
-dependence testing, and the future climate-scenario projection are all
-complete. See [`reports/wildfire_loss_report.md`](reports/wildfire_loss_report.md)
-for the full write-up, including known limitations and next steps.
+### Python version / install failures
+
+Use Python 3.11. `xclim` depends on `llvmlite`/`numba`; on Intel Macs, newer
+releases have no wheels and will try to compile LLVM from source. Pins in
+`requirements.txt` and `environment.yml` avoid that. Apple Silicon and Linux
+can often run a newer Python if you relax those pins.
+
+For methodology, results, discussion, limitations, and future work, see
+[`reports/wildfire_loss_report.md`](reports/wildfire_loss_report.md).
