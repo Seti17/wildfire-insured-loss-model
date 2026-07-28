@@ -126,7 +126,7 @@ python src/07_build_claims_feature_table.py
 - **`03_extract_fsa_boundaries.py`** -- filters the national FSA boundary
   shapefile to Alberta and cross-checks it against the portfolio data's FSA
   list. Output lands in `data/processed/boundaries/`. 5 portfolio FSAs have
-  no matching polygon in this boundary vintage -- see the report §4 for the
+  no matching polygon in this boundary vintage -- see the report Section 4 for the
   breakdown of which are legitimate exclusions vs. real gaps.
 - **`04_process_fuel_raster.py`** -- zonal statistics of the FBP Canada fuel
   raster onto FSA polygons (dominant fuel class, class diversity).

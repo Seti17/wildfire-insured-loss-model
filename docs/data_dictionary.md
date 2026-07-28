@@ -245,7 +245,7 @@ logic is one click away.
     cause, or WF93's season-start criterion is too conservative for this
     use case, or the claim date itself is imprecise. Resolution: these 73
     rows were excluded from the modelling set (not imputed) -- see
-    `reports/wildfire_loss_report.md` §4/§6/§7 for the quantified impact
+    `reports/wildfire_loss_report.md` Sections 4, 6, and 7 for the quantified impact
     (1.1% of total loss) and the resulting 232-row modelling set.
   - **1 row, from the "July 22 - August 17, 2024" event, FSA `T3T`:** a
     different cause entirely -- `T3T` (Tsuut'ina Nation territory) has no
