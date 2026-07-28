@@ -185,16 +185,19 @@ A simple, deliberately scoped-down frequency-severity model was fit given the tw
 The objective throughout was not to maximize predictive accuracy, but to develop the simplest statistically defensible baseline consistent with the available data. The final model wasn't the first thing tried; each step below was a response to something the data forced:
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph frequency["Frequency model"]
+        direction TB
         p1["Poisson"] --> d1["Overdispersion discovered"] --> nb["Negative Binomial"]
     end
 
     subgraph features["Features"]
+        direction TB
         d2["Multicollinearity discovered"] --> fr["Feature reduction"] --> fuel["Fuel feature added"]
     end
 
     subgraph validation["Validation & projection"]
+        direction TB
         loeo["Leave-one-event-out"] --> gee["GEE spatial dependence"] --> final["Final model + SSP projection"]
     end
 
