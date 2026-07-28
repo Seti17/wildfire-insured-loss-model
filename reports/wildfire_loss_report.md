@@ -32,9 +32,11 @@
 - **[6. Limitations](#6-limitations)**
 - **[7. Recommended next steps](#7-recommended-next-steps)**
 
+- **[Appendix A: Abbreviations](#appendix-a-abbreviations)**
+
 ## 1. Executive summary
 
-This project built a reproducible data pipeline connecting Alberta's insured wildfire portfolio to climate (Fire Weather Index) and geospatial (fuel-type) data, fit and validated a frequency-severity loss model, and projected losses under a future climate scenario. Every non-obvious result was independently verified against source data rather than assumed.
+This project built a reproducible data pipeline connecting Alberta's insured wildfire portfolio to climate (Fire Weather Index (FWI)) and geospatial (fuel-type) data, fit and validated a frequency-severity loss model, and projected losses under a future climate scenario. Results and data-quality checks were verified against source data before being reported.
 
 The headline findings:
 
@@ -88,7 +90,7 @@ The pipeline is region-agnostic: a single config file (`src/common.py`) controls
 
 ### 2.3 Data quality verification
 
-Every non-obvious behaviour below was checked against the underlying data rather than assumed correct or dismissed as a bug.
+Each item below was verified against the source data before being accepted, corrected, or carried forward as an open issue.
 
 **FSA boundary gap.** 5 of 159 portfolio FSAs have no matching polygon in the boundary file used:
 - **3 are correctly excluded**: non-residential Canada Post routing codes with no real population or geography.
@@ -311,7 +313,7 @@ The portfolio total masks where the change happens. Three panels: historical and
 
 *Mean FWI drops ~61%, mean DC drops ~27%.* Checked this isn't a bug: every one of the 6 future years is lower than nearly every historical year, and missing-data rates are similar between periods (55.5% vs. 53.1%). It's a real, consistent signal from this specific climate run. But it is a **single model, single scenario, single ensemble member**. Other CMIP6 models frequently project *increasing* fire weather risk for similar regions under similar scenarios. This should not be read as "Alberta wildfire risk is decreasing"; it is what this one model run says, and a genuine risk assessment needs a multi-model ensemble to say more than that.
 
-*Illustrative claim frequency and illustrative projected loss both rise despite FWI falling.* Not a bug either: the fitted frequency model has a *negative* `dc_max` coefficient (lower drought code → higher predicted frequency), so the drop in `dc_max` pushes the illustrative frequency, and therefore loss, up more than the drop in `fwi_max` pushes it down. That coefficient was learned from only 2 historical events with very different characteristics and is plausibly an artifact of which event happened to have the lower `dc_max`, not a stable physical relationship. Applying it to a new climate regime, on top of the event-window-vs-period-average scale mismatch noted above, and getting a counterintuitive result is a concrete demonstration of Section 5.3's finding that this model's out-of-sample behaviour cannot be trusted with only 2 events. **These numbers illustrate the methodology, not a trustworthy forecast of actual future losses.**
+*Illustrative claim frequency and illustrative projected loss both rise despite FWI falling.* Not a bug either: the fitted frequency model has a *negative* `dc_max` coefficient (lower drought code → higher predicted frequency), so the drop in `dc_max` pushes the illustrative frequency, and therefore loss, up more than the drop in `fwi_max` pushes it down. That coefficient was learned from only 2 historical events with very different characteristics and is plausibly an artifact of which event happened to have the lower `dc_max`, not a stable physical relationship. Applying it to a new climate regime, on top of the event-window-vs-period-average scale mismatch noted above, and getting a counterintuitive result is a concrete demonstration of Section 5.3's finding that this model's out-of-sample performance cannot be trusted with only 2 events. **These numbers illustrate the methodology, not a trustworthy forecast of actual future losses.**
 
 ### 5.5 Business interpretation
 
@@ -334,3 +336,34 @@ Ordered by business value:
 3. **Multi-model climate ensemble.** Widen the future projection beyond one model/scenario/member for a real uncertainty range, and resolve the event-window-vs-period-average feature scale mismatch (Section 5.4) before treating any future comparison as more than illustrative.
 4. **Resolve remaining data gaps.** The FWI-coverage decision, the `T3T`/`T4K` boundary gap, and the official fuel-type code legend all need resolving before feature finalization.
 5. **Alternative severity predictors.** Reconsider whether severity should share the frequency model's climate predictors (Section 4.3), or whether an exposure-oriented predictor set fits better.
+
+---
+
+## Appendix A: Abbreviations
+
+| Abbreviation | Definition |
+|---|---|
+| AIC | Akaike Information Criterion |
+| BUI | Buildup Index (FWI component) |
+| CMIP6 | Coupled Model Intercomparison Project Phase 6 |
+| DC | Drought Code (FWI component) |
+| DMC | Duff Moisture Code (FWI component) |
+| EDA | Exploratory Data Analysis |
+| FBP | Fire Behavior Prediction (Canadian fuel-type classification system) |
+| FFMC | Fine Fuel Moisture Code (FWI component) |
+| FSA | Forward Sortation Area |
+| FWI | Fire Weather Index |
+| GEE | Generalized Estimating Equations |
+| GLM | Generalized Linear Model |
+| ISI | Initial Spread Index (FWI component) |
+| LOEO | Leave-one-event-out |
+| LR | Likelihood ratio |
+| MAE | Mean Absolute Error |
+| MLE | Maximum Likelihood Estimation |
+| NB | Negative Binomial |
+| NEX-GDDP-CMIP6 | NASA Earth Exchange Global Daily Downscaled Projections (CMIP6) |
+| RMSE | Root Mean Square Error |
+| SE | Standard error |
+| SSP1-2.6 | Shared Socioeconomic Pathway 1-2.6 (climate scenario) |
+| StatCan | Statistics Canada |
+| WF93 | Van Wagner (1993) fire-season start model |
