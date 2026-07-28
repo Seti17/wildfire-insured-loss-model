@@ -4,12 +4,16 @@
 
 ## Table of contents
 
-- [1. Executive summary](#1-executive-summary)
-- [Requirements coverage](#requirements-coverage)
-- **Pipeline** — [2. Data sources](#2-data-sources) · [3. Pipeline overview](#3-pipeline-overview) · [4. Data quality verification](#4-data-quality-verification)
-- **EDA** — [5. Exploratory findings](#5-exploratory-findings) · [6. Known limitations](#6-known-limitations)
+- **Executive summary** — [1. Executive summary](#1-executive-summary)
+- **Requirements** — [Requirements coverage](#requirements-coverage)
+- **Pipeline** — [2. Data sources](#2-data-sources)
+- **Pipeline** — [3. Pipeline overview](#3-pipeline-overview)
+- **Pipeline** — [4. Data quality verification](#4-data-quality-verification)
+- **EDA** — [5. Exploratory findings](#5-exploratory-findings)
+- **EDA** — [6. Known limitations](#6-known-limitations)
 - **Model Development** — [7. Baseline frequency-severity model](#7-baseline-frequency-severity-model)
-- **Validation** — [8. Out-of-sample validation](#8-out-of-sample-validation) · [9. Spatial dependence](#9-spatial-dependence)
+- **Validation** — [8. Out-of-sample validation](#8-out-of-sample-validation)
+- **Validation** — [9. Spatial dependence](#9-spatial-dependence)
 - **Future Projection** — [10. Future climate projection (illustrative)](#10-future-climate-projection-illustrative-model-output-ssp1-26-20452050-vs-20152025)
 - **Discussion** — [11. Next steps](#11-next-steps)
 
@@ -63,7 +67,7 @@ Seven scripts (`src/01`–`07`) take the raw sources above to a claims-level fea
 
 The pipeline is region-agnostic — a single config file (`src/common.py`) controls which region's bounding box and province filter are used, so it can be re-pointed at a different province/dataset without code changes elsewhere.
 
-**Automated tests.** A small `pytest` suite (`tests/`, run via `pytest -q`) covers the riskiest pure-function transformations in `src/common.py`: the 0–360°→−180/180° longitude conversion, the NaN-aware area-weighted aggregation used to build the daily FSA-level FWI series (step 5), climate-input value-range validation before FWI computation (step 2), and the final feature-table checks — required columns, duplicate keys, non-negative exposure/loss values (step 7). Running these against the real historical and future climate files surfaced a genuine, tiny-magnitude data artifact (humidity briefly exceeding 100%, wind speed briefly negative — both known downscaling effects, not a units error) — see `src/common.py` for the documented tolerance. The suite deliberately does **not** test model fitting, exact coefficients, chart/map appearance, or the pipeline end to end; those are covered by the validation and diagnostics in Sections 7–10 instead.
+**Automated tests.** A small `pytest` suite (`tests/`, run via `pytest -q`) covers the highest-risk pure-function transformations, including longitude conversion, NaN-aware spatial aggregation, climate-input validation, and feature-table integrity checks. Running the tests against the historical and future climate datasets also identified minor downscaling artifacts (e.g., humidity slightly above 100%, slightly negative wind speeds), which are handled through documented validation tolerances.
 
 ## 4. Data quality verification
 
@@ -71,7 +75,7 @@ Every non-obvious behaviour below was checked against the underlying data rather
 
 **FSA boundary gap.** 5 of 159 portfolio FSAs have no matching polygon in the boundary file used:
 - **3 are correctly excluded** — non-residential Canada Post routing codes with no real population or geography.
-- **2 are a genuine data gap** — `T3T` (Tsuut'ina Nation territory, bordering Calgary) and `T4K` (rural area near Red Deer) are real, populated FSAs that are simply missing from this particular boundary file vintage. Not resolved in this analysis; carried forward as an open item (Section 6, Section 11) since one of these two has real claims history attached to it that currently can't be spatially joined to climate/fuel features at all.
+- **2 are a genuine data gap** — `T3T` and `T4K` are real, populated FSAs missing from this boundary file vintage; not resolved here, carried forward as an open item (Section 6, Section 11). See `docs/data_dictionary.md` for detail.
 
 **Smaller items, all checked and resolved:**
 - *Longitude convention:* climate source uses 0–360°, not ±180° — verified before trusting the bounding-box logic.
@@ -109,7 +113,7 @@ No clear linear relationship between an FSA's average exposure value and its tot
 ![FWI vs loss](../outputs/figures/alberta_fwi_vs_loss.png)
 ![FWI/loss correlation matrix](../outputs/figures/alberta_fwi_loss_correlation_matrix.png)
 
-24% of claim rows (73 of 305) have no usable FWI signal for their event window. Investigated rather than discarded: 72 of these are from the May 2016 event, where the fire season had genuinely not yet started in those FSAs' local climate data (confirmed by comparing a small urban FSA, which showed no fire-season activity at all through the event window, against a large rural FSA with an active fire season from early May). The remaining 1 is the `T3T` boundary gap described above. With only two events in the sample, correlations between FWI features and loss are exploratory signal at this stage, not yet a basis for model selection.
+24% of claim rows (73 of 305) have no usable FWI signal for their event window. Investigation showed that most missing FWI values (72 of 73, all from the May 2016 event) occurred because the WF93 fire season had not yet begun in those FSAs during the event window; the remaining 1 is the `T3T` boundary gap. With only two events in the sample, correlations between FWI features and loss are exploratory signal at this stage, not yet a basis for model selection.
 
 The correlation matrix covers all six FWI components. One feature, `days_fwi_above_30`, is blank throughout: FWI never exceeded 30 in either event window in this sample, so it has zero variance and an undefined correlation — not usable as a model feature in its current form.
 
@@ -241,15 +245,11 @@ No prediction interval is reported alongside these numbers: parameter uncertaint
 
 ![Illustrative projected loss: historical vs future](../outputs/figures/alberta_expected_loss_historical_vs_future.png)
 
-The portfolio total masks where the change happens. Three panels: historical and future illustrative projected loss (both colored by **percentile rank**, 0–100, not raw dollars — see below for why), and — the panel that actually answers "what happens to each FSA over time" — % change per FSA on a diverging color scale (blue = decrease, red = increase, centered at zero):
+The portfolio total masks where the change happens. Three panels: historical and future illustrative projected loss, and % change per FSA on a diverging color scale (blue = decrease, red = increase, centered at zero). Percentile colouring was used because projected losses are highly skewed, making absolute colour scales difficult to interpret:
 
 ![Illustrative projected loss by FSA: historical, future, and % change](../outputs/maps/alberta_expected_loss_by_fsa_choropleth.png)
 
-**Why the first two panels still look mostly dark red, and why that's not a broken color scale.** A continuous log scale and quantile dollar-bins were both tried first; both still looked dominated by dark red. Checking directly: only 14 of 154 FSAs (9%) are "T0"-prefix rural catch-all postal codes, but they cover most of Alberta's land area — and they genuinely are the model's highest-illustrative-value FSAs (`corr(predicted_loss, dominant_fuel_pct) = −0.49`; the model's `dominant_fuel_pct` coefficient is negative, so the lowest-fuel-pct FSAs — these large rural ones — get the highest value). Percentile-rank coloring (used above) fixes the color-scale problem specifically, but a choropleth still necessarily gives a few large-area polygons outsized visual weight relative to their share of FSAs — a known limitation of choropleth maps, not something a different palette can fix. The ranked bar chart below sidesteps it entirely:
-
 ![Top FSAs by illustrative projected loss](../outputs/figures/alberta_top_fsas_expected_loss.png)
-
-**Why some FSAs decrease (blue) in the % change panel while the portfolio total rises 70%.** Each FSA's future/historical ratio depends on the *relative* size of its own `fwi_max` drop (positive coefficient — pulls the illustrative value down) versus its own `dc_max` drop (negative coefficient — pushes it up), and the two don't move together uniformly across the province: % change correlates −0.54 with the change in `dc_max` and +0.46 with the change in `fwi_max`, both as expected from the coefficient signs. Concretely, the FSAs that decrease (e.g. the Calgary-area foothill FSAs T1A/T1B/T1C) had unusually high historical `fwi_max` (8–10 vs. a ~3.5 province mean) that roughly halves — a large absolute swing that dominates their smaller `dc_max` drop. The FSAs that increase most (Edmonton-area T5/T6/T8-prefix) had low historical `fwi_max` (~2.2) to begin with, so its drop barely matters, while `dc_max` still drops substantially — so the `dc_max` effect dominates instead. Both directions come from the same model and the same two coefficients, applied honestly to real spatial variation in the climate inputs — not an inconsistency, but a direct consequence of Section 7's already-flagged concern that these coefficients (fit on only 2 events) may not reflect a stable relationship.
 
 **Two findings here, neither should be taken at face value.**
 
