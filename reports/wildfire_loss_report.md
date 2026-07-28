@@ -184,7 +184,27 @@ A simple, deliberately scoped-down frequency-severity model was fit given the tw
 
 The objective throughout was not to maximize predictive accuracy, but to develop the simplest statistically defensible baseline consistent with the available data. The final model wasn't the first thing tried; each step below was a response to something the data forced:
 
-![Model evolution](../outputs/figures/alberta_model_evolution.png)
+```mermaid
+flowchart TB
+    subgraph frequency["Frequency model"]
+        p1["Poisson"] --> d1["Overdispersion discovered"] --> nb["Negative Binomial"]
+    end
+
+    subgraph features["Features"]
+        d2["Multicollinearity discovered"] --> fr["Feature reduction"] --> fuel["Fuel feature added"]
+    end
+
+    subgraph validation["Validation & projection"]
+        loeo["Leave-one-event-out"] --> gee["GEE spatial dependence"] --> final["Final model + SSP projection"]
+    end
+
+    nb --> d2
+    fuel --> loeo
+
+    style d1 fill:#f0ad4e,color:#1f1f1f
+    style d2 fill:#f0ad4e,color:#1f1f1f
+    style final fill:#3d8b5a,color:#fff
+```
 
 Poisson was the natural starting frequency model, but proved badly overdispersed, forcing a switch to Negative Binomial. Only once the model itself was settled did validation (Section 4.4) and spatial dependence (Section 4.5) get layered on, followed by the future-climate projection (Section 5.4) as the last step, applying the finished model unchanged.
 
